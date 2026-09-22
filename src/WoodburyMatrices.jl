@@ -12,13 +12,7 @@ abstract type AbstractWoodbury{T} <: Factorization{T} end
 """
     safeinv(A)
 
-Inverse of a Woodbury correction's capacitance matrix.
-
-A correction of rank `k` carries a `k`-by-`k` capacitance matrix, and `k` is 1 or
-2 for most callers. For real elements at those sizes the closed form is used in
-place of `inv`: it allocates less, and it is differentiable by AD systems that
-have no rule for LAPACK's LU. Its determinant is evaluated with `fma`, so the
-accuracy matches the LU it replaces.
+Precise inverse of a Woodbury correction's capacitance matrix.
 """
 safeinv(A) = inv(A)
 safeinv(A::SparseMatrixCSC) = safeinv(Matrix(A))
