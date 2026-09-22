@@ -9,8 +9,37 @@ export AbstractWoodbury, Woodbury, SymWoodbury
 
 abstract type AbstractWoodbury{T} <: Factorization{T} end
 
+"""
+    safeinv(A)
+
+Inverse of a Woodbury correction's capacitance matrix.
+
+A correction of rank `k` carries a `k`-by-`k` capacitance matrix, and `k` is 1 or
+2 for most callers. For real elements at those sizes the closed form is used in
+place of `inv`: it allocates less, and it is differentiable by AD systems that
+have no rule for LAPACK's LU. Its determinant is evaluated with `fma`, so the
+accuracy matches the LU it replaces.
+"""
 safeinv(A) = inv(A)
 safeinv(A::SparseMatrixCSC) = safeinv(Matrix(A))
+
+function safeinv(A::StridedMatrix{T}) where {T<:Union{Float32,Float64}}
+    n = LinearAlgebra.checksquare(A)
+    if n == 1
+        a = A[1, 1]
+        iszero(a) && throw(LinearAlgebra.SingularException(1))
+        return fill(inv(a), 1, 1)
+    elseif n == 2
+        a, b, c, d = A[1, 1], A[1, 2], A[2, 1], A[2, 2]
+        # Kahan's determinant: `a*d - b*c` loses the result to cancellation when
+        # the two products nearly agree, where pivoted LU keeps it.
+        w = b * c
+        det = fma(a, d, -w) + fma(-b, c, w)
+        iszero(det) && throw(LinearAlgebra.SingularException(2))
+        return [d/det -b/det; -c/det a/det]
+    end
+    return inv(A)
+end
 
 safepinv(A) = pinv(A)
 safepinv(A::SparseMatrixCSC) = safepinv(Matrix(A))
