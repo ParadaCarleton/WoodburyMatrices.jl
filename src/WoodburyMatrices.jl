@@ -17,7 +17,7 @@ Precise inverse of a Woodbury correction's capacitance matrix.
 safeinv(A) = inv(A)
 safeinv(A::SparseMatrixCSC) = safeinv(Matrix(A))
 
-function safeinv(A::StridedMatrix{T}) where T<:Real
+function safeinv(A::StridedMatrix{T}) where T<:Base.IEEEFloat
     order = LinearAlgebra.checksquare(A)
     if order == 1
         a = A[1, 1]
@@ -29,34 +29,19 @@ function safeinv(A::StridedMatrix{T}) where T<:Real
         a, b, c, d = A[1, 1], A[1, 2], A[2, 1], A[2, 2]
         # The closed form needs the products of entries to stay in range. Outside
         # that range, and for nonfinite entries, pivoted LU decides (and reports) the result.
-        if closed_form_range(T, maximum(abs, (a, b, c, d)))
+        if sqrt(floatmin(T)) <= maximum(abs, (a, b, c, d)) <= sqrt(floatmax(T)) / 2
             # Kahan's determinant: `a*d - b*c` loses the result to cancellation when
             # the two products nearly agree, where pivoted LU keeps it.
             cross_product = b * c
             determinant = fma(a, d, -cross_product) + fma(-b, c, cross_product)
             inverse = [d/determinant -b/determinant; -c/determinant a/determinant]
-            if closed_form_determinant(T, determinant) && all(isfinite, inverse)
+            if abs(determinant) >= floatmin(T) && all(isfinite, inverse)
                 return inverse
             end
         end
     end
     return inv(A)
 end
-
-"""
-    closed_form_range(T, scale)
-
-Whether the closed-form 2x2 inverse is safe for entries of type `T` with largest magnitude `scale`. A fixed-width
-float overflows or underflows in its products, and a fixed-width integer or rational wraps around or overflows in
-them (`inv` converts to floats first); other reals do not.
-"""
-closed_form_range(::Type{<:Real}, scale) = isfinite(scale)
-closed_form_range(::Type{<:Integer}, scale) = false
-closed_form_range(::Type{<:Rational{I}}, scale) where {I<:Integer} = I === BigInt
-closed_form_range(::Type{T}, scale) where {T<:Union{Float16,Float32,Float64}} =
-    sqrt(floatmin(T)) <= scale <= sqrt(floatmax(T)) / 2
-closed_form_determinant(::Type{<:Real}, determinant) = !iszero(determinant)
-closed_form_determinant(::Type{T}, determinant) where {T<:Union{Float16,Float32,Float64}} = abs(determinant) >= floatmin(T)
 
 safepinv(A) = pinv(A)
 safepinv(A::SparseMatrixCSC) = safepinv(Matrix(A))

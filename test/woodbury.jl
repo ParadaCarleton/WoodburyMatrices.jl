@@ -240,11 +240,11 @@ end
     @test_throws SingularException WoodburyMatrices.safeinv(zeros(1, 1))
     @test_throws SingularException WoodburyMatrices.safeinv([1.0 2.0; 2.0 4.0])
     @test_throws SingularException WoodburyMatrices.safeinv(Rational{Int}[1 2; 2 4])
-    # Integer products wrap around, so integer matrices take `inv`, which converts to floats.
+    # Only IEEE floats take the closed form. Integer and rational products can wrap around or
+    # overflow, so every other element type takes `inv`.
     for A in (Int[4_000_000_000 0; 0 4_000_000_000], Int8[100 0; 0 100], Int[3 1; 2 5])
         @test WoodburyMatrices.safeinv(A) ≈ inv(A)
     end
-    # Fixed-width rational products overflow the same way; an arbitrary-width rational has no overflow.
     for A in (Rational{Int}[4_000_000_000 0; 0 4_000_000_000], Rational{BigInt}[4_000_000_000 0; 0 4_000_000_000])
         @test WoodburyMatrices.safeinv(A) == inv(A)
     end
