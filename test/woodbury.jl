@@ -244,6 +244,10 @@ end
     for A in (Int[4_000_000_000 0; 0 4_000_000_000], Int8[100 0; 0 100], Int[3 1; 2 5])
         @test WoodburyMatrices.safeinv(A) ≈ inv(A)
     end
+    # Fixed-width rational products overflow the same way; an arbitrary-width rational has no overflow.
+    for A in (Rational{Int}[4_000_000_000 0; 0 4_000_000_000], Rational{BigInt}[4_000_000_000 0; 0 4_000_000_000])
+        @test WoodburyMatrices.safeinv(A) == inv(A)
+    end
     # Outside the range where products of entries are safe, and for nonfinite entries,
     # the result and the reported pivot are those of pivoted LU.
     singular_error(A) = try
