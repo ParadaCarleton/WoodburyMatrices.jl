@@ -29,7 +29,7 @@ function safeinv(A::StridedMatrix{T}) where T<:Real
         a, b, c, d = A[1, 1], A[1, 2], A[2, 1], A[2, 2]
         # The closed form needs the products of entries to stay in range. Outside
         # that range, and for nonfinite entries, pivoted LU decides (and reports) the result.
-        if closed_form_range(T, max(abs(a), abs(b), abs(c), abs(d)))
+        if closed_form_range(T, maximum(abs, (a, b, c, d)))
             # Kahan's determinant: `a*d - b*c` loses the result to cancellation when
             # the two products nearly agree, where pivoted LU keeps it.
             w = b * c
