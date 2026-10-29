@@ -30,8 +30,8 @@ function safeinv(A::StridedMatrix{T}) where T<:Base.IEEEFloat
         # The closed form needs the products of entries to stay in range. Outside
         # that range, and for nonfinite entries, pivoted LU decides (and reports) the result.
         if sqrt(floatmin(T)) <= maximum(abs, (a, b, c, d)) <= sqrt(floatmax(T)) / 2
-            # Kahan's determinant: `a*d - b*c` loses the result to cancellation when
-            # the two products nearly agree, where pivoted LU keeps it.
+            # Kahan's determinant: `a*d - b*c` rounds to zero when the two products
+            # nearly agree, and this form recovers it.
             cross_product = b * c
             determinant = fma(a, d, -cross_product) + fma(-b, c, cross_product)
             inverse = [d/determinant -b/determinant; -c/determinant a/determinant]

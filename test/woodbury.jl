@@ -225,7 +225,7 @@ end
 
 @testset "safeinv on tiny capacitance matrices" begin
     seed!(4711)
-    for T in (Float32, Float64, ComplexF32, ComplexF64), n in (1, 2, 3, 4)
+    for T in (Float16, Float32, Float64, ComplexF32, ComplexF64), n in (1, 2, 3, 4)
         A = rand(T, n, n) + n * I
         @test WoodburyMatrices.safeinv(A) ≈ inv(A)
         @test WoodburyMatrices.safeinv(A) * A ≈ Matrix{T}(I, n, n)
@@ -240,6 +240,11 @@ end
     @test_throws SingularException WoodburyMatrices.safeinv(zeros(1, 1))
     @test_throws SingularException WoodburyMatrices.safeinv([1.0 2.0; 2.0 4.0])
     @test_throws SingularException WoodburyMatrices.safeinv(Rational{Int}[1 2; 2 4])
+    # A strided view takes the same path, and a closed form whose inverse overflows (Float16 here) defers to `inv`.
+    padded = [3.0 1.0 0.0; 2.0 5.0 0.0; 0.0 0.0 1.0]
+    @test WoodburyMatrices.safeinv(@view padded[1:2, 1:2]) ≈ inv(padded[1:2, 1:2])
+    overflowing = Float16[128 1; 1 nextfloat(Float16(1/128))]
+    @test isequal(WoodburyMatrices.safeinv(overflowing), inv(overflowing))
     # Only IEEE floats take the closed form. Integer and rational products can wrap around or
     # overflow, so every other element type takes `inv`.
     for A in (Int[4_000_000_000 0; 0 4_000_000_000], Int8[100 0; 0 100], Int[3 1; 2 5])
