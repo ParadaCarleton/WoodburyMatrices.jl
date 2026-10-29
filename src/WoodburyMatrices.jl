@@ -43,8 +43,10 @@ function safeinv(A::StridedMatrix{T}) where T<:Real
     return inv(A)
 end
 
-# A fixed-width float overflows or underflows in the closed form's products; other reals do not.
+# A fixed-width float overflows or underflows in the closed form's products, and a fixed-width
+# integer wraps around in them (`inv` converts it to floats first); other reals do not.
 closed_form_range(::Type{<:Real}, scale) = isfinite(scale)
+closed_form_range(::Type{<:Integer}, scale) = false
 closed_form_range(::Type{T}, scale) where {T<:Union{Float16,Float32,Float64}} =
     sqrt(floatmin(T)) <= scale <= sqrt(floatmax(T)) / 2
 closed_form_determinant(::Type{<:Real}, det) = !iszero(det)
