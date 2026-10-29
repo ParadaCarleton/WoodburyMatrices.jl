@@ -250,12 +250,6 @@ end
     end
     # Outside the range where products of entries are safe, and for nonfinite entries,
     # the result and the reported pivot are those of pivoted LU.
-    singular_error(A) = try
-        WoodburyMatrices.safeinv(A)
-        nothing
-    catch exception
-        exception
-    end
     for T in (Float32, Float64)
         huge, tiny = sqrt(floatmax(T)), sqrt(floatmin(T)) / 16
         for A in (
@@ -267,9 +261,8 @@ end
             )
             @test isequal(WoodburyMatrices.safeinv(A), inv(A))
         end
-        @test singular_error(fill(huge, 2, 2)) isa SingularException
-        @test singular_error(fill(huge, 2, 2)).info == 2
-        @test singular_error(T[0 0; 0 1]).info == 1
+        @test_throws SingularException(2) WoodburyMatrices.safeinv(fill(huge, 2, 2))
+        @test_throws SingularException(1) WoodburyMatrices.safeinv(T[0 0; 0 1])
     end
     # Non-square input is a dimension error at every size.
     @test_throws DimensionMismatch WoodburyMatrices.safeinv(rand(2, 3))
