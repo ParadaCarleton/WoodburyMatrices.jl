@@ -239,6 +239,30 @@ end
     # infinities.
     @test_throws SingularException WoodburyMatrices.safeinv(zeros(1, 1))
     @test_throws SingularException WoodburyMatrices.safeinv([1.0 2.0; 2.0 4.0])
+    @test_throws SingularException WoodburyMatrices.safeinv(Rational{Int}[1 2; 2 4])
+    # Outside the range where products of entries are safe, and for nonfinite entries,
+    # the result and the reported pivot are those of pivoted LU.
+    singular_error(A) = try
+        WoodburyMatrices.safeinv(A)
+        nothing
+    catch exception
+        exception
+    end
+    for T in (Float32, Float64)
+        huge, tiny = sqrt(floatmax(T)), sqrt(floatmin(T)) / 16
+        for A in (
+                Matrix{T}(Diagonal(fill(huge, 2))),
+                Matrix{T}(Diagonal(fill(tiny, 2))),
+                T[huge huge; huge nextfloat(huge)],
+                T[T(Inf) 0; 0 1],
+                T[1 T(NaN); 0 1],
+            )
+            @test isequal(WoodburyMatrices.safeinv(A), inv(A))
+        end
+        @test singular_error(fill(huge, 2, 2)) isa SingularException
+        @test singular_error(fill(huge, 2, 2)).info == 2
+        @test singular_error(T[0 0; 0 1]).info == 1
+    end
     # Non-square input is a dimension error at every size.
     @test_throws DimensionMismatch WoodburyMatrices.safeinv(rand(2, 3))
 end

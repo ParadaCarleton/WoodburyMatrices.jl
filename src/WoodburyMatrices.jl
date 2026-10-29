@@ -27,15 +27,28 @@ function safeinv(A::StridedMatrix{T}) where T<:Real
         return fill(inv(a), 1, 1)
     elseif n == 2
         a, b, c, d = A[1, 1], A[1, 2], A[2, 1], A[2, 2]
-        # Kahan's determinant: `a*d - b*c` loses the result to cancellation when
-        # the two products nearly agree, where pivoted LU keeps it.
-        w = b * c
-        det = fma(a, d, -w) + fma(-b, c, w)
-        iszero(det) && throw(LinearAlgebra.SingularException(2))
-        return [d/det -b/det; -c/det a/det]
+        # The closed form needs the products of entries to stay in range. Outside
+        # that range, and for nonfinite entries, pivoted LU decides (and reports) the result.
+        if closed_form_range(T, max(abs(a), abs(b), abs(c), abs(d)))
+            # Kahan's determinant: `a*d - b*c` loses the result to cancellation when
+            # the two products nearly agree, where pivoted LU keeps it.
+            w = b * c
+            det = fma(a, d, -w) + fma(-b, c, w)
+            inverse = [d/det -b/det; -c/det a/det]
+            if closed_form_determinant(T, det) && all(isfinite, inverse)
+                return inverse
+            end
+        end
     end
     return inv(A)
 end
+
+# A fixed-width float overflows or underflows in the closed form's products; other reals do not.
+closed_form_range(::Type{<:Real}, scale) = isfinite(scale)
+closed_form_range(::Type{T}, scale) where {T<:Union{Float16,Float32,Float64}} =
+    sqrt(floatmin(T)) <= scale <= sqrt(floatmax(T)) / 2
+closed_form_determinant(::Type{<:Real}, det) = !iszero(det)
+closed_form_determinant(::Type{T}, det) where {T<:Union{Float16,Float32,Float64}} = abs(det) >= floatmin(T)
 
 safepinv(A) = pinv(A)
 safepinv(A::SparseMatrixCSC) = safepinv(Matrix(A))
